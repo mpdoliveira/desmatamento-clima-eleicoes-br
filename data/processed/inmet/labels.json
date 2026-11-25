@@ -1,0 +1,12 @@
+{
+  "INMET_CO_DF_A001_BRASILIA_01-01-2024_A_31-12-2024.CSV": {
+    "REGIAO": "CO",
+    "UF": "DF",
+    "ESTACAO": "BRASILIA",
+    "CODIGO (WMO)": "A001",
+    "LATITUDE": "-15,78944444",
+    "LONGITUDE": "-47,92583332",
+    "ALTITUDE": "1160,96",
+    "DATA DE FUNDACAO": "07/05/00"
+  }
+}
