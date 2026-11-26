@@ -8,7 +8,7 @@ def log(log_message, begin=False):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(LOG_FILE, mode="a", encoding="utf-8") as log_file:
         if (begin):
-            log_file.write("-" * 50)
+            log_file.write("-" * 50 + "\n")
 
         log_file.write(f"[{timestamp}] {log_message}\n")
 
