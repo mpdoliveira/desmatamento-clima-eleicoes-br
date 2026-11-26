@@ -7,13 +7,20 @@ import pyarrow.parquet as pq
 from src.paths import RAW_DATA_DIR, PROCESSED_DATA_DIR
 from src.logger import log
 
+log("BEGAN INMET PREPROCESSING", begin=True)
+
 # Data paths
 raw_inmet_dir = RAW_DATA_DIR / "inmet"
+if not raw_inmet_dir.exists():
+    log("Could not find raw data")
+
 processed_inmet_dir = PROCESSED_DATA_DIR / "inmet"
-processed_inmet_dir.mkdir(parents=True, exist_ok=True)
+if not processed_inmet_dir.exists():
+    processed_inmet_dir.mkdir(parents=True)
+    log("Creating processed directory")
+
 output_file = processed_inmet_dir / "inmet.parquet"
 
-# Metadata
 metadata_path = processed_inmet_dir / "metadata.json"
 all_metadata = (
     json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -27,7 +34,6 @@ csv_files = sorted(
 )
 
 # CLEAN AND GROUP YEAR RAW DATA
-log("FINISHED INMET PREPROCESSING", begin=True)
 
 writer = None
 processed_count = 0
