@@ -52,9 +52,62 @@ for input_file in csv_files:
         na_values=["", "NA", "null", "-9999"],
     )
 
-    df.head()
+    moddf = df.drop(
+        columns=[
+            "HORA UTC",
+            "PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (mB)",
+            "PRESSÃO ATMOSFERICA MAX.NA HORA ANT. (AUT) (mB)",
+            "PRESSÃO ATMOSFERICA MIN. NA HORA ANT. (AUT) (mB)",
+            "TEMPERATURA DO PONTO DE ORVALHO (°C)",
+            "TEMPERATURA ORVALHO MAX. NA HORA ANT. (AUT) (°C)",
+            "TEMPERATURA ORVALHO MIN. NA HORA ANT. (AUT) (°C)",
+            "VENTO, DIREÇÃO HORARIA (gr) (° (gr))",
+            "VENTO, RAJADA MAXIMA (m/s)",
+            "VENTO, VELOCIDADE HORARIA (m/s)",
+            "Unnamed: 19",
+        ],
+        errors="ignore",
+    )
 
-    df.to_parquet(output_file, index=False)
+    moddf["TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)"] = moddf[
+        "TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)"
+    ].fillna(
+        (
+            moddf["TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C)"]
+            + moddf["TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C)"]
+        )
+        / 2
+    )
+
+    moddf["UMIDADE RELATIVA DO AR, HORARIA (%)"] = moddf[
+        "UMIDADE RELATIVA DO AR, HORARIA (%)"
+    ].fillna(
+        (
+            moddf["UMIDADE REL. MAX. NA HORA ANT. (AUT) (%)"]
+            + moddf["UMIDADE REL. MIN. NA HORA ANT. (AUT) (%)"]
+        )
+        / 2
+    )
+
+    moddf = moddf.drop(
+        columns=[
+            "TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C)",
+            "TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C)",
+            "UMIDADE REL. MAX. NA HORA ANT. (AUT) (%)",
+            "UMIDADE REL. MIN. NA HORA ANT. (AUT) (%)",
+        ]
+    )
+
+    moddf = moddf.groupby(pd.to_datetime(moddf["Data"]).dt.month).agg(
+        {
+            "TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)": "mean",
+            "UMIDADE RELATIVA DO AR, HORARIA (%)": "mean",
+            "PRECIPITAÇÃO TOTAL, HORÁRIO (mm)": "sum",
+            "RADIACAO GLOBAL (Kj/m²)": "sum",
+        }
+    )
+
+    moddf.to_parquet(output_file, index=False)
 
 labels_path.write_text(
     json.dumps(all_labels, indent=2, ensure_ascii=False), encoding="utf-8"
