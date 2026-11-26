@@ -5,6 +5,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from src.paths import RAW_DATA_DIR, PROCESSED_DATA_DIR
+from src.logger import log
 
 # Data paths
 raw_inmet_dir = RAW_DATA_DIR / "inmet"
@@ -26,7 +27,11 @@ csv_files = sorted(
 )
 
 # CLEAN AND GROUP YEAR RAW DATA
+log("FINISHED INMET PREPROCESSING")
+
 writer = None
+processed_count = 0
+
 try:
     for input_file in csv_files:
 
@@ -52,7 +57,7 @@ try:
 
         # if no header found the file will be ignored
         if header_row_idx is None:
-            continue
+            log(f"Could not find header in {input_file.name}")
 
         file_stem = input_file.stem
         all_metadata[file_stem] = header_meta
@@ -149,14 +154,21 @@ try:
             table = table.cast(writer.schema)
 
         writer.write_table(table=table)
+        log(f"Successfully processed {input_file.name}")
+        processed_count += 1
 
         # Free DataFrames from memory right away
         del df, table
 finally:
+    log(f"{processed_count} files successfully compiled")
+
     if writer is not None:
         writer.close()
 
-# Saves added metadata to json
-metadata_path.write_text(
-    json.dumps(all_metadata, indent=2, ensure_ascii=False), encoding="utf-8"
-)
+    # Saves added metadata to json
+    metadata_path.write_text(
+        json.dumps(all_metadata, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+    log(f"Metadata saved to .json")
+    log("FINISHED INMET PREPROCESSING")
