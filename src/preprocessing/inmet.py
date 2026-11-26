@@ -27,7 +27,7 @@ csv_files = sorted(
 )
 
 # CLEAN AND GROUP YEAR RAW DATA
-log("FINISHED INMET PREPROCESSING")
+log("FINISHED INMET PREPROCESSING", begin=True)
 
 writer = None
 processed_count = 0
