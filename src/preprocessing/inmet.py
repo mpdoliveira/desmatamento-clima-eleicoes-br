@@ -44,6 +44,8 @@ try:
         header_meta = {}
         header_row_idx = None
 
+        date_column = None
+
         with open(input_file, mode="r", encoding="latin1") as file:
 
             # Save metadata and rows to skip
@@ -53,7 +55,8 @@ try:
                 if not parts or parts[0] == "":
                     continue
 
-                if parts[0].upper().strip() == "DATA":
+                if parts[0].upper().strip() in ["DATA", "DATA (YYYY-MM-DD)"]:
+                    date_column = parts[0]
                     header_row_idx = idx
                     break
 
@@ -78,67 +81,74 @@ try:
             na_values=["", "NA", "null", "-9999"],
         )
 
+        df.columns = df.columns.str.strip().str.upper()
+
+        COLUMN_MAP = {
+            "DATA": "date",
+            "DATA (YYYY-MM-DD)": "date",
+            "TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)": "temp_c",
+            "TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C)": "temp_max_c",
+            "TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C)": "temp_min_c",
+            "UMIDADE RELATIVA DO AR, HORARIA (%)": "humidity_pct",
+            "UMIDADE REL. MAX. NA HORA ANT. (AUT) (%)": "humidity_max_pct",
+            "UMIDADE REL. MIN. NA HORA ANT. (AUT) (%)": "humidity_min_pct",
+            "PRECIPITAÇÃO TOTAL, HORÁRIO (MM)": "precip_mm",
+            "PRECIPITACAO TOTAL, HORARIO (MM)": "precip_mm",
+            "RADIACAO GLOBAL (KJ/M²)": "radiation_kj_m2",
+            "RADIAÇÃO GLOBAL (KJ/M²)": "radiation_kj_m2",
+        }
+
+        df = df.rename(columns=COLUMN_MAP)
+
         # Remove unnecessary columns
         df = df.drop(
             columns=[
                 "HORA UTC",
-                "PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (mB)",
-                "PRESSÃO ATMOSFERICA MAX.NA HORA ANT. (AUT) (mB)",
-                "PRESSÃO ATMOSFERICA MIN. NA HORA ANT. (AUT) (mB)",
+                "PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (MB)",
+                "PRESSÃO ATMOSFERICA MAX.NA HORA ANT. (AUT) (MB)",
+                "PRESSÃO ATMOSFERICA MIN. NA HORA ANT. (AUT) (MB)",
                 "TEMPERATURA DO PONTO DE ORVALHO (°C)",
                 "TEMPERATURA ORVALHO MAX. NA HORA ANT. (AUT) (°C)",
                 "TEMPERATURA ORVALHO MIN. NA HORA ANT. (AUT) (°C)",
-                "VENTO, DIREÇÃO HORARIA (gr) (° (gr))",
-                "VENTO, RAJADA MAXIMA (m/s)",
-                "VENTO, VELOCIDADE HORARIA (m/s)",
-                "Unnamed: 19",
+                "VENTO, DIREÇÃO HORARIA (GR) (° (GR))",
+                "VENTO, RAJADA MAXIMA (M/S)",
+                "VENTO, VELOCIDADE HORARIA (M/S)",
+                "UNNAMED: 19",
             ],
             errors="ignore",
         )
 
         # Fill N/A temperature values with average
-        df["TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)"] = df[
-            "TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)"
-        ].fillna(
-            (
-                df["TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C)"]
-                + df["TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C)"]
-            )
-            / 2
+        df["temp_c"] = df["temp_c"].fillna(
+            (df["temp_max_c"] + df["temp_min_c"]) / 2
         )
 
         # Fill N/A humidity values with average
-        df["UMIDADE RELATIVA DO AR, HORARIA (%)"] = df[
-            "UMIDADE RELATIVA DO AR, HORARIA (%)"
-        ].fillna(
-            (
-                df["UMIDADE REL. MAX. NA HORA ANT. (AUT) (%)"]
-                + df["UMIDADE REL. MIN. NA HORA ANT. (AUT) (%)"]
-            )
-            / 2
+        df["humidity_pct"] = df["humidity_pct"].fillna(
+            (df["humidity_max_pct"] + df["humidity_min_pct"]) / 2
         )
 
         # Remove max and min temperature and humidity columns used to fill N/A values
         df = df.drop(
             columns=[
-                "TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C)",
-                "TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C)",
-                "UMIDADE REL. MAX. NA HORA ANT. (AUT) (%)",
-                "UMIDADE REL. MIN. NA HORA ANT. (AUT) (%)",
+                "temp_max_c",
+                "temp_min_c",
+                "humidity_max_pct",
+                "humidity_min_pct",
             ]
         )
 
         # Group by month
-        dt = pd.to_datetime(df["Data"])
+        dt = pd.to_datetime(df["date"])
         df["MES"] = dt.dt.month
         df["ANO"] = dt.dt.year
 
         df = df.groupby(["MES", "ANO"], as_index=False).agg(
             {
-                "TEMPERATURA DO AR - BULBO SECO, HORARIA (°C)": "mean",  # Average hourly temperature
-                "UMIDADE RELATIVA DO AR, HORARIA (%)": "mean",  # Average hourly humidity
-                "PRECIPITAÇÃO TOTAL, HORÁRIO (mm)": "sum",  # Total monthly precipitation
-                "RADIACAO GLOBAL (Kj/m²)": "sum",  # Total monthly radiation
+                "temp_c": "mean",  # Average hourly temperature
+                "humidity_pct": "mean",  # Average hourly humidity
+                "precip_mm": "sum",  # Total monthly precipitation
+                "radiation_kj_m2": "sum",  # Total monthly radiation
             }
         )
 
@@ -160,7 +170,6 @@ try:
             table = table.cast(writer.schema)
 
         writer.write_table(table=table)
-        log(f"Successfully processed {input_file.name}")
         processed_count += 1
 
         # Free DataFrames from memory right away
