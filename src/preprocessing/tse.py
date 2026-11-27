@@ -86,6 +86,7 @@ try:
                 not in [
                     "election_year",
                     "election_date",
+                    "uf",
                     "municipality_name",
                     "party_acronym",
                     "party_name",
